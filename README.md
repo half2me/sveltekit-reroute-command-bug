@@ -1,10 +1,10 @@
-# SvelteKit Bug: `command()` (remote functions) ignores the `reroute` hook
+# SvelteKit Bug: `command()` returns `null` for `event.route.id` on rerouted pages
 
 ## Description
 
-When using SvelteKit's experimental `command()` (remote functions) from a page that is served via a `reroute` hook, the server-side `event.route.id` and `event.url.pathname` reflect the **original (un-rerouted) URL** instead of the rerouted one.
+When using SvelteKit's experimental `command()` (remote functions) from a page that is served via a `reroute` hook, `event.route.id` inside the command is `null` instead of the matched route.
 
-This means server code running inside a `command()` sees a different request context than the same code would see during normal page rendering.
+Page navigation correctly resolves `event.route.id` via the `reroute` hook. But when a `command()` is invoked from that same page, `event.route.id` is `null`.
 
 ## Setup
 
@@ -24,21 +24,17 @@ pnpm dev
 
 ### Expected behavior
 
-The `command()` should see the same rerouted request context as a normal page load:
-- `event.route.id` → `/actual`
-- `event.url.pathname` → `/actual`
+`event.route.id` → `/actual` (same as during page navigation)
 
 ### Actual behavior
 
-The `command()` sees the **un-rerouted** URL:
-- `event.route.id` → `null`
-- `event.url.pathname` → `/original`
+`event.route.id` → `null`
 
-You can verify by navigating to `/actual` directly and clicking the button — in that case, the `command()` correctly returns `route.id: /actual` and `pathname: /actual`.
+Navigate to `/actual` directly and click the button to verify — in that case `event.route.id` is correctly `/actual`.
 
 ## Real-world impact
 
-This bug breaks any `handle` hook logic that relies on `event.route.id` for `command()` requests. For example, in our production app we use subdomain-based routing via `reroute`:
+This breaks any `handle` hook logic that uses `event.route.id` for `command()` requests. In our production app we use subdomain-based routing via `reroute`:
 
 ```ts
 // hooks.ts — reroutes acme.example.com/ → /o/acme
@@ -56,17 +52,18 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 };
 ```
 
-When a `command()` is called from `acme.example.com/`, the server sees `event.route.id` as the un-rerouted `/` (which matches `/(static)`) instead of `/o/[slug]`. This causes the auth hook to skip session setup, breaking any server function that needs the session (e.g., CAPTCHA verification for logged-in users).
+When a `command()` is called from `acme.example.com/`, `event.route.id` is `null` instead of `/o/[slug]`. In our case the un-rerouted `/` path happened to match a `/(static)` route group, causing the auth hook to skip session setup.
 
 ## Key files
 
 - `src/hooks.ts` — the `reroute` hook that maps `/original` → `/actual`
 - `src/hooks.server.ts` — logs every request's `route.id` and `url.pathname`
 - `src/routes/actual/+page.svelte` — page with a button that calls a `command()`
-- `src/lib/get-route-info.remote.ts` — the server `command()` that returns `event.route.id` and `event.url.pathname`
+- `src/lib/get-route-info.remote.ts` — the server `command()` that returns `event.route` and `event.url`
 
 ## Environment
 
-- SvelteKit with `experimental.remoteFunctions: true`
-- `compilerOptions.experimental.async: true`
-- Svelte 5, TypeScript
+- SvelteKit 2.55.0
+- Svelte 5.53.13
+- Vite 8.0.0
+- TypeScript 5.9.3

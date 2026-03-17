@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { getRouteInfo } from '$lib/get-route-info.remote';
 
-	let result: { routeId: string | null; pathname: string } | null = $state(null);
+	let result: { route: { id: string | null }; pathname: string; href: string } | null =
+		$state(null);
 	let loading = $state(false);
 
 	async function handleClick() {
@@ -24,18 +25,10 @@
 
 {#if result}
 	<h2>Server-side result from command():</h2>
-	<dl>
-		<dt><code>event.route.id</code></dt>
-		<dd><code>{result.routeId ?? 'null'}</code></dd>
-		<dt><code>event.url.pathname</code></dt>
-		<dd><code>{result.pathname}</code></dd>
-	</dl>
-
-	<h2>Expected vs Actual</h2>
 	<table>
 		<thead>
 			<tr>
-				<th></th>
+				<th>Property</th>
 				<th>Expected</th>
 				<th>Actual</th>
 				<th>OK?</th>
@@ -43,17 +36,21 @@
 		</thead>
 		<tbody>
 			<tr>
-				<td><code>route.id</code></td>
+				<td><code>event.route.id</code></td>
 				<td><code>/actual</code></td>
-				<td><code>{result.routeId ?? 'null'}</code></td>
-				<td>{result.routeId === '/actual' ? 'PASS' : 'BUG'}</td>
-			</tr>
-			<tr>
-				<td><code>url.pathname</code></td>
-				<td><code>/actual</code></td>
-				<td><code>{result.pathname}</code></td>
-				<td>{result.pathname === '/actual' ? 'PASS' : 'BUG'}</td>
+				<td><code>{result.route.id ?? 'null'}</code></td>
+				<td>{result.route.id === '/actual' ? 'PASS' : 'BUG'}</td>
 			</tr>
 		</tbody>
 	</table>
+
+	<h3>Other properties (informational):</h3>
+	<dl>
+		<dt><code>event.route</code></dt>
+		<dd><pre>{JSON.stringify(result.route, null, 2)}</pre></dd>
+		<dt><code>event.url.pathname</code></dt>
+		<dd><code>{result.pathname}</code></dd>
+		<dt><code>event.url.href</code></dt>
+		<dd><code>{result.href}</code></dd>
+	</dl>
 {/if}
